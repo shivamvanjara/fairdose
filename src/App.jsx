@@ -1,12 +1,12 @@
-// src/App.jsx (ULTIMATE VERSION: Confetti + Share + 12 Medicines)
+// src/App.jsx (ULTIMATE VERSION: Confetti + Share + 12 Medicines + Admin Link)
 import React, { useState, useRef } from "react";
 import "./index.css";
 import { db } from "./firebase";
 import { collection, getDocs } from "firebase/firestore";
-import { Search, Camera, Pill, ShieldCheck, AlertCircle, X, Sparkles, Mic, Share2 } from "lucide-react"; 
+import { Search, Camera, Pill, ShieldCheck, AlertCircle, X, Sparkles, Mic, Share2, Settings } from "lucide-react"; // Added Settings Icon
 import { Toaster, toast } from "react-hot-toast"; 
 import { motion, AnimatePresence } from "framer-motion"; 
-import confetti from "canvas-confetti"; // 🎉 Import Confetti
+import confetti from "canvas-confetti"; 
 
 // --- CONFIG ---
 const VISION_API_KEY = "AIzaSyARj7ZriMUeHruI_KrNHKabi7gaLGGeQNk"; 
@@ -313,10 +313,39 @@ export default function App() {
         )}
       </main>
 
-      <footer className="disclaimer">
-        <AlertCircle size={16} /> 
-        <span>Information only. Not medical advice.</span>
-      </footer>
+      
+
+      {/* 🔹 ADMIN FLOATING BUTTON 🔹 */}
+      <motion.a
+        href="https://fairdoseadmin.vercel.app/"
+        target="_blank"
+        rel="noopener noreferrer"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        title="Admin Login"
+        style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          backgroundColor: '#2563eb', // Matches your theme color
+          color: 'white',
+          width: '50px',
+          height: '50px',
+          borderRadius: '50%',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          boxShadow: '0 4px 14px rgba(37, 99, 235, 0.4)',
+          zIndex: 1000,
+          cursor: 'pointer'
+        }}
+      >
+        <Settings size={24} />
+      </motion.a>
+      {/* 🔹 END ADMIN BUTTON 🔹 */}
+
     </div>
   );
 }
