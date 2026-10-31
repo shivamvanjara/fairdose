@@ -1,0 +1,50 @@
+/* ROOT APP CONTAINER */
+#root {
+  width: 100%;
+  min-height: 100vh;
+  background-color: var(--bg-main);
+}
+
+/* CARD STYLE (USED BY DASHBOARD) */
+.card {
+  background-color: var(--bg-paper);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.06);
+  padding: 1.25rem;
+}
+
+/* PAGE WRAPPER */
+.page-container {
+  padding: 24px;
+}
+
+/* SECTION TITLES */
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+/* SMALL TEXT */
+.text-muted {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+/* ACTION COLORS */
+.text-danger {
+  color: var(--danger);
+}
+
+/* LOGO (OPTIONAL) */
+.logo {
+  height: 48px;
+  margin-bottom: 16px;
+}
+
+/* REMOVE VITE DEMO STUFF */
+.read-the-docs,
+.logo.react {
+  display: none;
+}

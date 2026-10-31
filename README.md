@@ -1,16 +1,32 @@
-# React + Vite
+# FairDose
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This repository contains two independent React/Vite applications:
 
-Currently, two official plugins are available:
+- The FairDose user-facing app is at the repository root.
+- The FairDose Admin dashboard is in `admin/`.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Each app has its own `package.json`, lockfile, Vite configuration, and build output. Run commands from the corresponding app directory:
 
-## React Compiler
+```sh
+# User app
+npm install
+npm run dev
+npm run build
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+# Admin app
+cd admin
+npm install
+npm run dev
+npm run build
+```
 
-## Expanding the ESLint configuration
+## Deployment
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Keep the two apps as separate hosting projects, using the same Git repository:
+
+| App | Hosting project root directory | Build command | Output directory |
+| --- | --- | --- | --- |
+| FairDose user app | `.` | `npm run build` | `dist` |
+| FairDose Admin | `admin` | `npm run build` | `dist` |
+
+Update the root directory for each existing hosting project in its provider dashboard. This preserves the apps' separate deployments and URLs; no hosting configuration is managed by this repository.
