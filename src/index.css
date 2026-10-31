@@ -111,6 +111,12 @@ body {
   background: transparent;
 }
 
+.captcha-container {
+  display: flex;
+  justify-content: center;
+  margin: 12px auto 0;
+}
+
 /* Buttons */
 .btn-primary, .btn-secondary {
   padding: 12px 24px;

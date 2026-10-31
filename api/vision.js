@@ -36,7 +36,11 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: "OCR service is not configured." });
   }
 
-  const { imageBase64, mimeType } = req.body || {};
+  const { captchaToken, imageBase64, mimeType } = req.body || {};
+  if (typeof captchaToken !== "string" || captchaToken.length === 0 || captchaToken.length > 2048) {
+    return res.status(400).json({ error: "Complete the verification challenge." });
+  }
+
   if (
     typeof imageBase64 !== "string" ||
     imageBase64.length === 0 ||
@@ -55,6 +59,35 @@ export default async function handler(req, res) {
   }
 
   try {
+    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+    if (!turnstileSecret) {
+      return res.status(503).json({ error: "Request verification is not configured." });
+    }
+
+    const verification = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        secret: turnstileSecret,
+        response: captchaToken
+      }),
+      signal: AbortSignal.timeout(10000)
+    });
+
+    if (!verification.ok) {
+      return res.status(502).json({ error: "Request verification is unavailable." });
+    }
+
+    const verificationResult = await verification.json();
+    const requestHostname = new URL(req.headers.origin).hostname;
+    if (
+      !verificationResult.success ||
+      verificationResult.action !== "prescription_scan" ||
+      verificationResult.hostname !== requestHostname
+    ) {
+      return res.status(403).json({ error: "Request verification failed." });
+    }
+
     const visionResponse = await fetch("https://vision.googleapis.com/v1/images:annotate", {
       method: "POST",
       headers: {
@@ -83,6 +116,6 @@ export default async function handler(req, res) {
       text: result.responses?.[0]?.fullTextAnnotation?.text || ""
     });
   } catch {
-    return res.status(502).json({ error: "OCR provider is unavailable." });
+    return res.status(502).json({ error: "OCR request is temporarily unavailable." });
   }
 }

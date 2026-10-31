@@ -1,5 +1,5 @@
 // src/App.jsx (ULTIMATE VERSION: Confetti + Share + 12 Medicines + Admin Link)
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import "./index.css";
 import { db } from "./firebase";
 import { collection, getDocs } from "firebase/firestore";
@@ -33,7 +33,10 @@ export default function App() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detectedMeds, setDetectedMeds] = useState([]);
+  const [pendingScan, setPendingScan] = useState(null);
   const fileInputRef = useRef(null);
+  const captchaContainerRef = useRef(null);
+  const captchaWidgetRef = useRef(null);
 
   // --- 1. VOICE SEARCH ---
   const startVoiceSearch = () => {
@@ -61,7 +64,7 @@ export default function App() {
     };
   };
 
-  const handleSearch = async (searchTerm) => {
+  const handleSearch = useCallback(async (searchTerm) => {
     const term = searchTerm || query;
     if (!term) {
       toast.error("Please enter a medicine name");
@@ -126,12 +129,12 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [query]);
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0];
+    e.target.value = "";
     if (!file) return;
-
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
       toast.error("Choose a JPEG, PNG, or WebP image.");
       return;
@@ -142,6 +145,11 @@ export default function App() {
       return;
     }
 
+    setPendingScan(file);
+  };
+
+  const scanPrescription = useCallback(async (file, captchaToken) => {
+    setPendingScan(null);
     setLoading(true);
     const toastId = toast.loading("Scanning prescription...");
 
@@ -162,7 +170,11 @@ export default function App() {
       const response = await fetch("/api/vision", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: base64Image, mimeType: file.type })
+        body: JSON.stringify({
+          captchaToken,
+          imageBase64: base64Image,
+          mimeType: file.type
+        })
       });
       const data = await response.json();
       if (!response.ok) {
@@ -187,8 +199,54 @@ export default function App() {
       toast.error("Scan failed.", { id: toastId });
     } finally {
       setLoading(false);
+      setPendingScan(null);
     }
-  };
+  }, [handleSearch]);
+
+  useEffect(() => {
+    if (!pendingScan) return undefined;
+
+    const siteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY;
+    if (!siteKey) {
+      toast.error("Prescription scanning is not configured.");
+      setPendingScan(null);
+      return undefined;
+    }
+
+    const script = document.getElementById("cloudflare-turnstile");
+    const renderChallenge = () => {
+      if (!window.turnstile || !captchaContainerRef.current) {
+        toast.error("Request verification could not be loaded.");
+        setPendingScan(null);
+        return;
+      }
+
+      captchaWidgetRef.current = window.turnstile.render(captchaContainerRef.current, {
+        sitekey: siteKey,
+        action: "prescription_scan",
+        callback: (token) => scanPrescription(pendingScan, token),
+        "error-callback": () => toast.error("Request verification failed. Please try again.")
+      });
+    };
+
+    if (window.turnstile) {
+      renderChallenge();
+    } else if (script) {
+      script.addEventListener("load", renderChallenge, { once: true });
+      script.addEventListener("error", renderChallenge, { once: true });
+    }
+
+    return () => {
+      if (script) {
+        script.removeEventListener("load", renderChallenge);
+        script.removeEventListener("error", renderChallenge);
+      }
+      if (captchaWidgetRef.current !== null && window.turnstile) {
+        window.turnstile.remove(captchaWidgetRef.current);
+        captchaWidgetRef.current = null;
+      }
+    };
+  }, [pendingScan, scanPrescription]);
 
   return (
     <div className="app">
@@ -246,8 +304,12 @@ export default function App() {
           <button className="btn-primary" onClick={() => handleSearch()}>
             Search
           </button>
-          <input type="file" ref={fileInputRef} hidden accept="image/*" onChange={handleFileChange} />
+          <input type="file" ref={fileInputRef} hidden accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} />
         </motion.div>
+
+        {pendingScan && (
+          <div className="captcha-container" ref={captchaContainerRef} />
+        )}
 
         <AnimatePresence>
           {detectedMeds.length > 0 && (
