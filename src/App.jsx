@@ -8,9 +8,6 @@ import { Toaster, toast } from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion"; 
 import confetti from "canvas-confetti"; 
 
-// --- CONFIG ---
-const VISION_API_KEY = "AIzaSyARj7ZriMUeHruI_KrNHKabi7gaLGGeQNk"; 
-
 const SYMPTOM_MAP = {
   fever: ["paracetamol", "ibuprofen"],
   pain: ["paracetamol", "ibuprofen"],
@@ -135,50 +132,60 @@ export default function App() {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      toast.error("Choose an image smaller than 3 MB.");
+      return;
+    }
+
     setLoading(true);
     const toastId = toast.loading("Scanning prescription...");
-    
+
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      
-      reader.onload = async () => {
-        const base64Image = reader.result.split(",")[1];
-        
-        const response = await fetch(
-          `https://vision.googleapis.com/v1/images:annotate?key=${VISION_API_KEY}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              requests: [{
-                image: { content: base64Image },
-                features: [{ type: "TEXT_DETECTION" }]
-              }]
-            })
+      const base64Image = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result !== "string") {
+            reject(new Error("Could not read the selected image."));
+            return;
           }
-        );
+          resolve(reader.result.split(",")[1]);
+        };
+        reader.onerror = () => reject(reader.error || new Error("Could not read the selected image."));
+        reader.readAsDataURL(file);
+      });
 
-        const data = await response.json();
-        const text = data.responses?.[0]?.fullTextAnnotation?.text || "";
-        const cleaned = text.toLowerCase().replace(/[^a-z0-9\s]/g, " ");
-        const found = MEDICINE_KEYWORDS.filter(k => 
-          cleaned.split(" ").some(word => word.includes(k) || k.includes(word))
-        );
+      const response = await fetch("/api/vision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageBase64: base64Image, mimeType: file.type })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "OCR request failed.");
+      }
 
-        if (found.length > 0) {
-          setDetectedMeds(found);
-          setQuery(found[0]);
-          handleSearch(found[0]);
-          toast.success("Medicine detected!", { id: toastId });
-        } else {
-          toast.error("Could not read medicine name.", { id: toastId });
-        }
-        setLoading(false);
-      };
+      const cleaned = (data.text || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ");
+      const found = MEDICINE_KEYWORDS.filter(k =>
+        cleaned.split(" ").some(word => word.includes(k) || k.includes(word))
+      );
+
+      if (found.length > 0) {
+        setDetectedMeds(found);
+        setQuery(found[0]);
+        await handleSearch(found[0]);
+        toast.success("Medicine detected!", { id: toastId });
+      } else {
+        toast.error("Could not read medicine name.", { id: toastId });
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Prescription scan failed:", error);
       toast.error("Scan failed.", { id: toastId });
+    } finally {
       setLoading(false);
     }
   };
